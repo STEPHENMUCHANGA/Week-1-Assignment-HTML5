@@ -1,0 +1,145 @@
+# Create the project directory
+mkdir alx_travel_app && cd alx_travel_app
+
+# Set up a virtual environment
+python3 -m venv env
+source env/bin/activate
+
+# Install dependencies
+pip install django djangorestframework django-cors-headers drf-yasg mysqlclient django-environ celery
+
+# Start Django project
+django-admin startproject alx_travel_app .
+
+# Create listings app
+python manage.py startapp listings
+
+--- requirement.txt ---
+Django>=4.2
+djangorestframework
+django-cors-headers
+drf-yasg
+mysqlclient
+django-environ
+celery
+--- .env ---
+SECRET_KEY='your-secret-key'
+DB_NAME='alx_db'
+DB_USER='your_user'
+DB_PASSWORD='your_password'
+DB_HOST='localhost'
+DB_PORT='3306'
+--- setting.py ---
+import os
+from pathlib import Path
+import environ
+
+env = environ.Env()
+environ.Env.read_env()
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+SECRET_KEY = env("SECRET_KEY")
+DEBUG = True
+ALLOWED_HOSTS = []
+
+INSTALLED_APPS = [
+    'django.contrib.admin',
+    'django.contrib.auth',
+    'django.contrib.contenttypes',
+    'django.contrib.sessions',
+    'django.contrib.messages',
+    'django.contrib.staticfiles',
+    'rest_framework',
+    'corsheaders',
+    'drf_yasg',
+    'listings',
+]
+
+MIDDLEWARE = [
+    'corsheaders.middleware.CorsMiddleware',
+    'django.middleware.security.SecurityMiddleware',
+    'django.contrib.sessions.middleware.SessionMiddleware',
+    'django.middleware.common.CommonMiddleware',
+    'django.middleware.csrf.CsrfViewMiddleware',
+    'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+DATABASES = {
+    'default': {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': env('DB_NAME'),
+        'USER': env('DB_USER'),
+        'PASSWORD': env('DB_PASSWORD'),
+        'HOST': env('DB_HOST'),
+        'PORT': env('DB_PORT'),
+    }
+}
+
+CORS_ALLOW_ALL_ORIGINS = True
+--- urls.py ---
+from django.contrib import admin
+from django.urls import path, include
+from rest_framework import permissions
+from drf_yasg.views import get_schema_view
+from drf_yasg import openapi
+
+schema_view = get_schema_view(
+    openapi.Info(
+        title="ALX Travel App API",
+        default_version='v1',
+        description="API documentation for ALX Travel App",
+    ),
+    public=True,
+    permission_classes=[permissions.AllowAny],
+)
+
+urlpatterns = [
+    path('admin/', admin.site.urls),
+    path('api/', include('listings.urls')),
+    path('swagger/', schema_view.with_ui('swagger', cache_timeout=0), name='schema-swagger-ui'),
+]
+--- listings/views.py ---
+from rest_framework.views import APIView
+from rest_framework.response import Response
+
+class HelloWorld(APIView):
+    def get(self, request):
+        return Response({"message": "Welcome to ALX Travel App!"})
+--- listings/urls.py ---
+from django.urls import path
+from .views import HelloWorld
+
+urlpatterns = [
+    path('hello/', HelloWorld.as_view(), name='hello'),
+]
+--- celery.py ---
+import os
+from celery import Celery
+
+os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'alx_travel_app.settings')
+app = Celery('alx_travel_app')
+app.config_from_object('django.conf:settings', namespace='CELERY')
+app.autodiscover_tasks()
+--- _init_.py ---
+from .celery import app as celery_app
+__all__ = ('celery_app',)
+--- RabbitMQ installation ---
+# On Debian/Ubuntu
+sudo apt-get install rabbitmq-server
+sudo systemctl enable rabbitmq-server
+sudo systemctl start rabbitmq-server
+--- Run ---
+# Run MySQL and RabbitMQ
+sudo systemctl start mysql
+sudo systemctl start rabbitmq-server
+
+# Django migrations
+python manage.py makemigrations
+python manage.py migrate
+
+# Start the server
+python manage.py runserver
+Open http://localhost:8000/swagger/ to see the API documentation.
